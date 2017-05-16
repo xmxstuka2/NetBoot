@@ -1,0 +1,44 @@
+#!/bin/bash
+
+sleep 10
+
+sudo service puppet stop
+
+sethost=v$RANDOM$RANDOM$RANDOM
+sudo hostnamectl set-hostname $sethost
+
+sudo cat <<EOF > /etc/hosts
+127.0.0.1       localhost
+127.0.1.1       ubuntu $sethost
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
+
+sudo service avahi-daemon restart
+
+sudo cat <<EOF > /etc/puppet/puppet.conf
+[main]
+logdir=/var/log/puppet
+vardir=/var/lib/puppet
+ssldir=/var/lib/puppet/ssl
+rundir=/run/puppet
+factpath=$vardir/lib/facter
+prerun_command=/etc/puppet/etckeeper-commit-pre
+postrun_command=/etc/puppet/etckeeper-commit-post
+[master]
+ssl_client_header = SSL_CLIENT_S_DN
+ssl_client_verify_header = SSL_CLIENT_VERIFY
+[agent]
+server = PXEMaster.local
+EOF
+
+sudo rm -r /var/lib/puppet/ssl
+sudo puppet agent --enable
+sudo service puppet restart
+
+sudo rm /etc/init.d/firstboot
+update-rc.d firstboot remove
